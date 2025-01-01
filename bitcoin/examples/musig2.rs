@@ -10,7 +10,7 @@ use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::{
     transaction, Address, Amount, Network, OutPoint, ScriptBuf, Sequence, TapTweakHash, Transaction, TxIn, TxOut, Txid, Witness, XOnlyPublicKey
 };
-use secp256k1::musig::{new_musig_nonce_pair, MusigAggNonce, MusigKeyAggCache, MusigSession, MusigSessionId};
+use secp256k1::musig::{new_musig_nonce_pair, MusigAggNonce, MusigKeyAggCache, MusigSession, MusigSecRand};
 use secp256k1::Keypair;
 
 use bitcoin::address::script_pubkey::ScriptBufExt;
@@ -29,7 +29,7 @@ fn main() {
     let secret_key_share_2 = SecretKey::new(&mut rand::thread_rng());
     let public_key_share_2 = secret_key_share_2.public_key(&secp);
 
-    let public_keys = [public_key_share_1, public_key_share_2];
+    let public_keys = [&public_key_share_1, &public_key_share_2];
 
     let mut musig_key_agg_cache = MusigKeyAggCache::new(&secp, &public_keys);
 
@@ -81,7 +81,7 @@ fn main() {
     let msg_bytes = sighash.to_byte_array();
     let msg = secp256k1::Message::from(sighash);
 
-    let musig_session_id = MusigSessionId::new(&mut rand::thread_rng());
+    let musig_session_id = MusigSecRand::new(&mut rand::thread_rng());
 
     let nonce_pair1 = new_musig_nonce_pair(
         &secp, 
@@ -92,7 +92,7 @@ fn main() {
         Some(msg), 
         None).unwrap();
 
-    let musig_session_id = MusigSessionId::new(&mut rand::thread_rng());
+    let musig_session_id = MusigSecRand::new(&mut rand::thread_rng());
 
     let nonce_pair2 = new_musig_nonce_pair(
         &secp, 
@@ -109,7 +109,7 @@ fn main() {
     let sec_nonce2 = nonce_pair2.0;
     let pub_nonce2 = nonce_pair2.1;
 
-    let agg_nonce = MusigAggNonce::new(&secp, &[pub_nonce1, pub_nonce2]);
+    let agg_nonce = MusigAggNonce::new(&secp, &[&pub_nonce1, &pub_nonce2]);
 
     let session = MusigSession::new(&secp, &musig_key_agg_cache, agg_nonce, msg);
 
@@ -125,7 +125,7 @@ fn main() {
     let is_partial_signature_valid = session.partial_verify(&secp, &musig_key_agg_cache, partial_sign2, pub_nonce2, public_key_share_2);
     assert!(is_partial_signature_valid);
 
-    let partial_sigs = [partial_sign1, partial_sign2];
+    let partial_sigs = [&partial_sign1, &partial_sign2];
 
     let sig64 = session.partial_sig_agg(&partial_sigs);
 
